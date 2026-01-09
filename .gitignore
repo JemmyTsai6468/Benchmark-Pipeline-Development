@@ -1,0 +1,4 @@
+__pycache__/
+anomaly_maps/
+metrics/
+mvtec_ad_structured/

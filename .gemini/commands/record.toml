@@ -1,7 +1,7 @@
 description = "Create a Markdown file dev_log.md to record the current conversation history"
 
 prompt = """
-Please create a Markdown log of our current conversation.
+Please create a log of our current conversation and output a markdown file dev_log.md.
 
 ### Requirements for Markdown Content:
 * **Comprehensive Trace**: Include all trial-and-error iterations to ensure the evolution of the solution is fully captured.

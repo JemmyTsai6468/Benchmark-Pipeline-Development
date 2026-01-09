@@ -1,7 +1,7 @@
 description = "Generates a Git commit message based on staged changes and performs the commit."
 
 prompt = """
-Please generate a Commit message based on the following git diff:
+Please generate a Commit message based on the following git diff and execute 'git commit -m' using the generated message.:
 
 ```diff
 !{git diff --staged}
@@ -39,6 +39,4 @@ set of acceptable architectures for scheduling.
 
 Note that the CPU architecture filter is disabled by default.
 ```
-
-Then, execute 'git commit' using the generated message.
 """

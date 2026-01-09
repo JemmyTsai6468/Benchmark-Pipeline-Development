@@ -8,3 +8,5 @@ torchvision
 fiftyone
 datasets==2.19.2
 pyarrow==16.1.0
+tifffile
+tabulate
