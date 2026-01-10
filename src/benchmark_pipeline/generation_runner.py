@@ -5,12 +5,14 @@ Handles the process of generating anomaly maps for a given model and dataset cat
 import os
 from pathlib import Path
 import torch
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 import torch.multiprocessing as multiprocessing
 from torchvision import transforms
 from PIL import Image
 import fiftyone as fo
 from fiftyone import ViewField as F
+from fiftyone.core.sample import SampleView
+from fiftyone.utils.torch import FiftyOneTorchDataset, GetItem
 import tifffile
 from tqdm import tqdm
 
@@ -18,48 +20,40 @@ from .model_handler import ModelHandler
 from .config import CONFIG
 from .utils import get_device
 
-class FiftyOneDataset(Dataset):
+# Define the transformation pipeline
+DATA_TRANSFORM = transforms.Compose([
+    transforms.Resize((256, 256)),
+    transforms.ToTensor(),
+])
+
+class AnomalyMapGetItem(GetItem):
     """
-    A PyTorch Dataset to wrap a FiftyOne SampleView, designed to be fork-safe
-    for multiprocessing in DataLoader.
-    
-    The database connection is initialized lazily in each worker process.
+    A custom GetItem class for the vectorized FiftyOneTorchDataset.
+    It defines the fields to be cached and the logic to transform them.
     """
-    def __init__(self, dataset_name: str, category: str, length: int, transform=None):
-        self.dataset_name = dataset_name
-        self.category = category
-        self.transform = transform
-        self._length = length
+    @property
+    def required_keys(self):
+        # Define the fields to cache from the FiftyOne dataset
+        return "filepath", "defect"
 
-        # These will be initialized in the worker process
-        self.view: fo.SampleView = None
-        self.ids = None
-
-    def __len__(self):
-        return self._length
-
-    def _init_view(self):
-        """Initializes the FiftyOne view within the worker process."""
-        # Establish connection and load dataset within the worker
-        self.view = fo.load_dataset(self.dataset_name).match(F("category.label") == self.category)
-        self.ids = self.view.values("id")
-
-    def __getitem__(self, idx):
-        if self.view is None:
-            self._init_view()
-
-        sample = self.view[self.ids[idx]]
-        image = Image.open(sample.filepath).convert("RGB")
+    def __call__(self, sample_dict):
+        """
+        Loads and transforms the cached data for a single sample.
         
-        if self.transform:
-            image = self.transform(image)
-            
-        sample_info = {
-            'defect_label': sample.defect['label'],
-            'filepath': sample.filepath
-        }
+        Args:
+            sample_dict: A dict containing the cached field values.
         
-        return image, sample_info
+        Returns:
+            A tuple of (image_tensor, defect_label, image_id)
+        """
+        filepath = sample_dict["filepath"]
+        defect_label = sample_dict["defect"]["label"]
+        image_id = Path(filepath).stem
+        
+        image = Image.open(filepath).convert("RGB")
+        image_tensor = DATA_TRANSFORM(image)
+        
+        return image_tensor, defect_label, image_id
 
 class GenerationRunner:
     """
@@ -89,12 +83,7 @@ class GenerationRunner:
         handler = ModelHandler(model_name)
         self.model = handler.get_model_instance(image_size=self.image_size)
         self.model.to(self.device)
-        self.model.eval() # Set model to evaluation mode
-
-        self.data_transform = transforms.Compose([
-            transforms.Resize(self.image_size),
-            transforms.ToTensor(),
-        ])
+        self.model.eval()
 
     def run(self):
         """
@@ -103,47 +92,44 @@ class GenerationRunner:
         print(f"--- Generating maps for model '{self.model_name}' on category '{self.category}' ---")
         
         category_view = self.fo_dataset.match(F("category.label") == self.category)
-        view_length = len(category_view)
 
-        if not view_length:
+        if not category_view:
             print(f"Warning: No samples found for category '{self.category}'. Skipping.")
             return
 
-        self._generate_and_save_maps(view_length)
+        self._generate_and_save_maps(category_view)
         
         print(f"--- Anomaly map generation for '{self.category}' complete. ---\n")
 
-    def _generate_and_save_maps(self, view_length: int):
+    def _generate_and_save_maps(self, category_view: SampleView):
         """Iterates through samples, generates anomaly maps, and saves them."""
         
-        dataset = FiftyOneDataset(
-            dataset_name=self.fo_dataset.name,
-            category=self.category,
-            length=view_length,
-            transform=self.data_transform
+        # Create a vectorized dataset for performance
+        torch_dataset = FiftyOneTorchDataset(
+            category_view,
+            get_item=AnomalyMapGetItem(),
+            vectorize=True,
         )
 
         dataloader = DataLoader(
-            dataset,
+            torch_dataset,
             batch_size=self.batch_size,
             shuffle=False,
             num_workers=4,
             pin_memory=True,
-            multiprocessing_context=multiprocessing.get_context('spawn')
         )
 
         with torch.no_grad():
-            for image_tensor, samples_info in tqdm(dataloader, desc=f"Processing '{self.category}'"):
+            for image_tensor, defect_labels, image_ids in tqdm(dataloader, desc=f"Processing '{self.category}'"):
                 image_tensor = image_tensor.to(self.device)
                 
                 # Generate anomaly map
                 anomaly_map_tensor = self.model(image_tensor)
                 
                 # Process and save each map in the batch
-                num_samples = image_tensor.size(0)
-                for i in range(num_samples):
-                    defect_label = samples_info['defect_label'][i]
-                    image_id = Path(samples_info['filepath'][i]).stem
+                for i in range(len(image_ids)):
+                    defect_label = defect_labels[i]
+                    image_id = image_ids[i]
                     
                     anomaly_map = anomaly_map_tensor[i].squeeze().cpu().numpy()
 

@@ -23,6 +23,7 @@ It is designed with a clean, modern architecture to allow developers to easily a
   - `eval_scripts/`: Isolated, unmodified evaluation component to ensure consistency.
 - **🔌 Open-Closed Model Extensibility**: Adding a new model is as simple as creating a new file in the `models/` directory and implementing a standard interface. **No modification of the core pipeline code is required.**
 - **⚙️ Configuration-Driven**: All experiments are controlled via a central, easy-to-read YAML file (`configs/pipeline_config.yaml`), where you can specify which models and dataset categories to evaluate.
+- **⚡️ Efficient & Idiomatic Data Loading**: The pipeline uses `fiftyone.utils.torch.FiftyOneTorchDataset` with a vectorized `get_item` pattern, which is the official, recommended approach for high-performance data loading. This caches metadata in memory and transparently handles multiprocessing complexities.
 - **🔒 Consistent & Reliable Evaluation**: The pipeline uses a fixed, "black box" set of evaluation scripts to ensure that all models are benchmarked under identical conditions, guaranteeing fair and reproducible results.
 
 ## Project Structure
@@ -173,8 +174,12 @@ That's it! The next time you run the pipeline, your new model will be automatica
 
 ## Development Notes
 
-### Multiprocessing & Database Safety
+### High-Performance Data Loading with PyTorch
 
-This project uses PyTorch `DataLoader` with multiple workers to speed up data loading. Since FiftyOne uses MongoDB (via PyMongo), special care is taken to avoid "MongoClient opened before fork" warnings and potential deadlocks.
+This project uses the officially recommended `fiftyone.utils.torch.FiftyOneTorchDataset` to interface between the FiftyOne dataset and the PyTorch `DataLoader`.
 
-The pipeline is configured to use the **`'spawn'`** multiprocessing context in `src/benchmark_pipeline/generation_runner.py`. This ensures that each worker process starts fresh and establishes its own database connection, which is the most robust way to handle FiftyOne in a multi-worker environment.
+The data loading is highly optimized using a **vectorized** strategy. In `src/benchmark_pipeline/generation_runner.py`, you will see:
+1.  A custom `GetItem` class is defined to specify which data fields are needed (e.g., `filepath`, `defect`).
+2.  The `FiftyOneTorchDataset` is initialized with `vectorize=True`.
+
+This approach loads all required sample metadata from the database into memory at once, avoiding costly per-sample database queries inside the data loading loop. This is the most performant and robust way to handle data loading from FiftyOne in a multi-worker PyTorch environment, as it transparently deals with database connection safety across processes.
