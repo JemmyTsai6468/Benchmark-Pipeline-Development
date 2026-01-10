@@ -9,10 +9,36 @@ import os
 
 import numpy as np
 import tifffile as tiff
+import torch
 
 OBJECT_NAMES = ['bottle', 'cable', 'capsule', 'carpet', 'grid',
                 'hazelnut', 'leather', 'metal_nut', 'pill', 'screw',
                 'tile', 'toothbrush', 'transistor', 'wood', 'zipper']
+
+
+def get_device(device: str) -> torch.device:
+    """
+    Determines and returns the appropriate torch device based on user input and availability.
+
+    Args:
+        device: The desired device ("auto", "cuda", or "cpu").
+
+    Returns:
+        The selected torch.device object.
+    """
+    if device == "auto":
+        if torch.cuda.is_available():
+            return torch.device("cuda")
+        else:
+            print("INFO: CUDA not available. Falling back to CPU.")
+            return torch.device("cpu")
+    elif device == "cuda":
+        if not torch.cuda.is_available():
+            print("WARNING: CUDA is not available. Falling back to CPU.")
+            return torch.device("cpu")
+        return torch.device("cuda")
+    else:
+        return torch.device("cpu")
 
 
 def trapezoid(x, y, x_max=None):

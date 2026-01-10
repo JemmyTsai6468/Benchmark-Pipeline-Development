@@ -24,6 +24,8 @@ class PipelineConfig(BaseModel):
     The main configuration model for the benchmark pipeline.
     It orchestrates all other configuration parts.
     """
+    device: str = Field("auto", description='Device to use, e.g., "cuda", "cpu", or "auto".')
+    batch_size: int = Field(32, gt=0, description="Batch size for processing.")
     models: List[str] = Field(..., min_length=1, description="List of models to evaluate.")
     categories: List[str] = Field(..., min_length=1, description="List of MVTec AD categories to run on.")
     paths: PathsConfig

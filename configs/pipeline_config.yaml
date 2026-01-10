@@ -1,5 +1,9 @@
 # Main configuration for the benchmark pipeline
 
+# Performance settings
+device: auto # Use "cuda", "cpu", or "auto" for automatic detection.
+batch_size: 32
+
 # List of models to evaluate.
 # These names must correspond to model handler configurations.
 models:
