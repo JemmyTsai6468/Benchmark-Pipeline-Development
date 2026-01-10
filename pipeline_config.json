@@ -1,7 +1,0 @@
-{
-  "models": ["DummyModel"],
-  "categories": ["bottle", "cable", "capsule", "carpet", "grid", "hazelnut", "leather", "metal_nut", "pill", "screw", "tile", "toothbrush", "transistor", "wood", "zipper"],
-  "dataset_dir": "./mvtec_ad_structured",
-  "anomaly_maps_root": "./generated_anomaly_maps",
-  "metrics_root": "./evaluation_metrics"
-}

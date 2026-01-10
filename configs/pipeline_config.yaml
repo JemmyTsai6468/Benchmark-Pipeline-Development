@@ -1,0 +1,35 @@
+# Main configuration for the benchmark pipeline
+
+# List of models to evaluate.
+# These names must correspond to model handler configurations.
+models:
+  - DummyModelV1
+  - DummyModelV2
+  - DummyModelV3
+
+# List of MVTec AD categories to run the evaluation on.
+categories:
+  - bottle
+  - cable
+  - capsule
+  - carpet
+  - grid
+  - hazelnut
+  - leather
+  - metal_nut
+  - pill
+  - screw
+  - tile
+  - toothbrush
+  - transistor
+  - wood
+  - zipper
+
+# Path settings
+paths:
+  # Root directory for the structured MVTec AD dataset.
+  dataset_dir: ./data/mvtec_ad_structured
+  # Root directory where generated anomaly maps will be saved.
+  anomaly_maps_root: ./results/anomaly_maps
+  # Root directory where final evaluation metrics will be saved.
+  metrics_root: ./results/metrics

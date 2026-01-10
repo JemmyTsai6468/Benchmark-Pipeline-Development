@@ -11,3 +11,5 @@ pyarrow==16.1.0
 tifffile
 tabulate
 tabulate
+pydantic
+pyyaml

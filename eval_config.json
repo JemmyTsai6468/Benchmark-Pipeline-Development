@@ -1,6 +1,0 @@
-{
-    "exp_base_dir": "/home/jemmytsai/Projects/pegaai/benchmark_pipeline_dev_v4/generated_anomaly_maps",
-    "anomaly_maps_dirs": {
-        "DummyModel": "DummyModel/"
-    }
-}

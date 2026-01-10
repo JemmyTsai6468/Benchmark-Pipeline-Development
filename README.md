@@ -1,101 +1,158 @@
-# MVTec Anomaly Detection Evaluation Pipeline
+# Extensible Anomaly Detection Benchmark Pipeline
 
 ## Overview
 
-This project provides a fully automated pipeline for evaluating anomaly detection models on the MVTec Anomaly Detection (AD) dataset. It is designed to be configurable and extensible, allowing for the evaluation of multiple models across multiple object categories in a single run.
+This project provides a fully automated, configurable, and extensible benchmark pipeline for evaluating anomaly detection models on standard datasets like MVTec AD.
 
-The pipeline handles everything from data preparation and anomaly map generation to metric calculation and results summarization.
+It is designed with a clean, modern architecture to allow developers to easily add new models for evaluation and run the entire end-to-end process—from dataset setup to final metric reporting—with a single command.
 
-## Features
+## Key Features
 
-- **End-to-End Automation**: A single command executes the entire pipeline, from data setup to the final report.
-- **Multi-Model & Multi-Category**: Easily configure the pipeline to run evaluations for a list of different models across any subset of the 15 MVTec AD categories.
-- **Configurable**: A central `pipeline_config.json` file allows you to define the scope of the evaluation runs without modifying the source code.
-- **Clear Summaries**: The pipeline outputs final performance metrics (AU-PRO and AU-ROC) in clean, formatted tables for easy comparison.
-- **Extensible**: Designed to be easily extended with new models.
+- **🚀 Automated End-to-End Flow**: A single command executes the entire pipeline, including dataset downloading, anomaly map generation, metric calculation, and results summarization.
+- **🧩 Modular Architecture**: The project follows modern software design principles (e.g., Separation of Concerns) with a clean structure:
+  - `src/`: Core pipeline logic.
+  - `models/`: Extensible directory for new models.
+  - `eval_scripts/`: Isolated, unmodified evaluation component to ensure consistency.
+- **🔌 Open-Closed Model Extensibility**: Adding a new model is as simple as creating a new file in the `models/` directory and implementing a standard interface. **No modification of the core pipeline code is required.**
+- **⚙️ Configuration-Driven**: All experiments are controlled via a central, easy-to-read YAML file (`configs/pipeline_config.yaml`), where you can specify which models and dataset categories to evaluate.
+- **🔒 Consistent & Reliable Evaluation**: The pipeline uses a fixed, "black box" set of evaluation scripts to ensure that all models are benchmarked under identical conditions, guaranteeing fair and reproducible results.
 
-## File Structure & Purpose
+## Project Structure
 
-Here is a breakdown of the key files and directories in this evaluation pipeline:
+The project is organized into the following key directories:
 
-| File / Directory               | Purpose                                                                                                                                                                                            |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`run_pipeline.py`**          | **Main entry point for the entire pipeline.** This script reads the configuration and orchestrates the execution of all other scripts in the correct order.                                         |
-| **`pipeline_config.json`**     | **Central configuration file.** Here you define which models and which MVTec categories you want to evaluate. You also specify the paths for datasets and results.                                   |
-| **`run_generation.py`**        | A helper script responsible for generating anomaly maps. It takes a model name and a category as input and saves the resulting anomaly maps in the appropriate directory structure.                  |
-| `evaluate_multiple_experiments.py` | (Existing) An evaluation script that reads a configuration of multiple experiment results and calls `evaluate_experiment.py` for each one.                                                     |
-| `evaluate_experiment.py`       | (Existing) The core evaluation script. It calculates AU-PRO and AU-ROC metrics for a single model's anomaly maps against the ground truth.                                                          |
-| `print_metrics.py`             | (Existing) A utility that takes a folder of metric files and prints a formatted summary table to the console, comparing the performance of all evaluated models.                                     |
-| `generic_util.py`              | (Existing) Contains various helper functions, including the canonical list of all 15 MVTec AD object names (`OBJECT_NAMES`).                                                                        |
-| `mvtec_ad_structured/`         | A directory containing the MVTec AD dataset after it has been restructured by the pipeline into the format required for evaluation (i.e., separated by category, test/ground_truth, and defect type). |
-| `generated_anomaly_maps/`      | The output directory where all anomaly maps generated by `run_generation.py` are stored, organized by model name and category.                                                                     |
-| `evaluation_metrics/`          | The final output directory containing the detailed `metrics.json` file for each model and the overall summary tables.                                                                                  |
+```
+/
+├─── src/benchmark_pipeline/   # The core, modern pipeline source code.
+├─── scripts/run_benchmark.py  # The main and only entry point to run the pipeline.
+├─── configs/                  # All user-facing configurations.
+│    └─── pipeline_config.yaml
+├─── models/                   # Directory for adding new, custom models.
+├─── eval_scripts/             # Self-contained, legacy evaluation scripts (treated as a black box).
+├─── data/                     # Default location for downloaded and structured datasets.
+└─── results/                  # Default output location for anomaly maps and metrics.
+```
 
-## How to Use
+## Setup and Installation
 
-### 1. Installation
+### Prerequisites
 
-Ensure you have installed all necessary dependencies. This project uses `uv` for environment and package management.
+1.  **Python**: Version 3.12+
+2.  **Package Manager**: This project uses `uv` for environment and package management.
+3.  **MongoDB**: [FiftyOne](https://docs.voxel51.com/getting_started/install.html#database), the dataset management tool used in this pipeline, requires a running MongoDB instance. Please ensure you have MongoDB installed and running on `localhost:27017`.
+
+### Installation
+
+Install all required Python packages using `uv`:
 
 ```bash
-# Install dependencies
 uv pip install -r requirements.txt
 ```
 
-### 2. Add Your Model
+## How to Run the Pipeline
 
-To evaluate your own custom model, you need to:
+### Step 1: Configure the Experiment
 
-A. **Update `run_generation.py`**: Open the `run_generation.py` script and add the logic to load your model in the `get_model()` function.
+Edit `configs/pipeline_config.yaml` to define the scope of your benchmark run. Specify which models you want to evaluate and on which dataset categories.
 
-   ```python
-   # In run_generation.py
-   def get_model(model_name, image_size):
-       """Factory function to get a model instance by name."""
-       if model_name == "DummyModel":
-           return DummyModel(image_size=image_size)
-       # ADD YOUR MODEL LOADING LOGIC HERE
-       elif model_name == "MyPatchCoreModel":
-           my_model = ... # Your model loading code
-           return my_model
-       else:
-           raise ValueError(f"Unknown model name: {model_name}")
-   ```
+```yaml
+# configs/pipeline_config.yaml
 
-B. **Update Configuration**: Add the name of your model to the `"models"` list in `pipeline_config.json`.
+# List of models to evaluate.
+# These names must match the class names in the models/ directory.
+models:
+  - DummyModelV1
+  - DummyModelV2
+  - DummyModelV3
+  # - MyNewModel # Add your custom model here
 
-   ```json
-   {
-     "models": ["DummyModel", "MyPatchCoreModel"],
-     "categories": ["bottle", "cable", ...],
-     ...
-   }
-   ```
-
-### 3. Configure the Evaluation
-
-Edit `pipeline_config.json` to specify which models and which of the 15 MVTec AD categories you wish to evaluate. By default, it is configured to run the `DummyModel` on all 15 categories.
-
-### 4. Run the Pipeline
-
-Execute the main pipeline script. It will run the complete end-to-end process.
-
-```bash
-uv run run_pipeline.py
+# List of MVTec AD categories to run the evaluation on.
+categories:
+  - bottle
+  - cable
+  - carpet
+  # - ... and so on
 ```
 
-### 5. Check the Results
+### Step 2: Execute the Pipeline
 
-The final performance summary tables will be printed to your console. Detailed JSON files for each model's performance are saved in the `evaluation_metrics/` directory.
+Run the entire pipeline using the main entry point script:
 
-## The Evaluation Process in Detail
+```bash
+uv run python scripts/run_benchmark.py
+```
 
-When you execute `uv run run_pipeline.py`, the following steps occur:
+The script will automatically handle:
+1.  Setting up the required directories.
+2.  Downloading and structuring the dataset (one-time setup).
+3.  Generating anomaly maps for every model-category combination.
+4.  Executing the evaluation scripts.
+5.  Printing a summary report to the console.
 
-1.  **Configuration Load**: The script reads `pipeline_config.json` to get the list of models and categories for the run.
-2.  **Directory Setup**: It cleans and prepares the `generated_anomaly_maps/` and `evaluation_metrics/` directories.
-3.  **Dataset Restructuring**: It checks for the existence of the `mvtec_ad_structured/` directory. If not found, it downloads the MVTec AD dataset via `fiftyone` and restructures it into the required format for evaluation. This is a one-time setup.
-4.  **Anomaly Map Generation**: The script iterates through every model and category combination defined in the config. For each pair, it calls `run_generation.py` as a subprocess to generate and save the corresponding anomaly maps.
-5.  **Evaluation Config Creation**: Once all maps are generated, the pipeline creates a temporary `eval_config.json` file. This file tells the next script where to find the anomaly maps for each model.
-6.  **Metric Calculation**: The script calls `evaluate_multiple_experiments.py`, which reads `eval_config.json` and, in turn, calls `evaluate_experiment.py` to compute the AU-PRO and AU-ROC metrics for every model across all categories. The results are saved as JSON files in the `evaluation_metrics/` directory.
-7.  **Result Summarization**: Finally, the script calls `print_metrics.py`, which reads the metric files and prints the final, formatted comparison tables to the console.
+### Step 3: Check the Results
+
+The final summary tables (AU-PRO and AU-ROC) will be printed to your console upon completion.
+
+Detailed JSON files for each model's performance are saved in the `results/metrics/` directory, organized by model name.
+
+## How to Add a New Model
+
+The pipeline is designed to be easily extended with new models. Follow these three steps:
+
+### Step 1: Create Your Model File
+
+Create a new Python file in the `models/` directory. The file name should match the model's class name (e.g., `models/MyPatchCore.py` for a class named `MyPatchCore`).
+
+### Step 2: Implement the `BenchmarkModel` Interface
+
+In your new file, create a class that inherits from `src.benchmark_pipeline.model_handler.BenchmarkModel` and implements the `__init__` and `forward` methods.
+
+**Template:**
+```python
+# models/MyPatchCore.py
+
+import torch
+from src.benchmark_pipeline.model_handler import BenchmarkModel
+
+class MyPatchCore(BenchmarkModel):
+    def __init__(self, image_size=(256, 256)):
+        """
+        Your model's initialization code goes here.
+        This is where you would load weights, define layers, etc.
+        """
+        super().__init__(image_size)
+        # Example:
+        # self.patch_core_model = self.load_model_weights()
+
+    def forward(self, image_tensor: torch.Tensor) -> torch.Tensor:
+        """
+        This method takes a batch of images and must return a batch of
+        anomaly maps.
+
+        Args:
+            image_tensor: A tensor of input images, shape (N, C, H, W).
+
+        Returns:
+            A tensor of anomaly maps, shape (N, 1, H, W).
+        """
+        # Your model's inference logic goes here.
+        # anomaly_map = self.patch_core_model(image_tensor)
+        # return anomaly_map
+        
+        # Placeholder: returning a zero tensor
+        batch_size = image_tensor.shape[0]
+        return torch.zeros(batch_size, 1, self.image_size[0], self.image_size[1])
+
+```
+
+### Step 3: Add Model to Configuration
+
+Finally, add the name of your new model class to the `models` list in `configs/pipeline_config.yaml`:
+
+```yaml
+models:
+  - DummyModelV1
+  - MyPatchCore # Your new model
+```
+
+That's it! The next time you run the pipeline, your new model will be automatically included in the benchmark.

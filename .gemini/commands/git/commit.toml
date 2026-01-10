@@ -1,7 +1,7 @@
 description = "Generates a Git commit message based on staged changes and performs the commit."
 
 prompt = """
-Please generate a Commit message based on the following git diff and execute 'git commit -m' using the generated message.:
+Please generate a Commit message based on the following git diff:
 
 ```diff
 !{git diff --staged}
