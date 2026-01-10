@@ -39,6 +39,14 @@ class BenchmarkModel(ABC, torch.nn.Module):
         """
         pass
 
+    def fit(self, training_dataloader: 'torch.utils.data.DataLoader'):
+        """
+        (Optional) Fit the model on normal training data.
+        For models like PatchCore that need to build a memory bank.
+        By default, does nothing.
+        """
+        pass
+
 class ModelHandler:
     """
     Handles the dynamic loading of benchmark models.

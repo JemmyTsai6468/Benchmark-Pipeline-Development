@@ -22,6 +22,7 @@ It is designed with a clean, modern architecture to allow developers to easily a
   - `models/`: Extensible directory for new models.
   - `eval_scripts/`: Isolated, unmodified evaluation component to ensure consistency.
 - **🔌 Open-Closed Model Extensibility**: Adding a new model is as simple as creating a new file in the `models/` directory and implementing a standard interface. **No modification of the core pipeline code is required.**
+- **🧠 Support for Complex Models**: The pipeline architecture explicitly supports models that require a `fit()` step (e.g., for training or building a memory bank) and includes examples of advanced memory management techniques like coreset subsampling for large-scale models (see `models/PatchCore.py`).
 - **⚙️ Configuration-Driven**: All experiments are controlled via a central, easy-to-read YAML file (`configs/pipeline_config.yaml`), where you can specify which models and dataset categories to evaluate.
 - **⚡️ Efficient & Idiomatic Data Loading**: The pipeline uses `fiftyone.utils.torch.FiftyOneTorchDataset` with a vectorized `get_item` pattern, which is the official, recommended approach for high-performance data loading. This caches metadata in memory and transparently handles multiprocessing complexities.
 - **🔒 Consistent & Reliable Evaluation**: The pipeline uses a fixed, "black box" set of evaluation scripts to ensure that all models are benchmarked under identical conditions, guaranteeing fair and reproducible results.
@@ -110,37 +111,50 @@ Detailed JSON files for each model's performance are saved in the `results/metri
 
 ## How to Add a New Model
 
-The pipeline is designed to be easily extended with new models. Follow these three steps:
+The pipeline is designed to be easily extended with new models.
 
 ### Step 1: Create Your Model File
 
-Create a new Python file in the `models/` directory. The file name should match the model's class name (e.g., `models/MyPatchCore.py` for a class named `MyPatchCore`).
+Create a new Python file in the `models/` directory. The file name should match the model's class name (e.g., `models/PatchCore.py` for a class named `PatchCore`).
 
 ### Step 2: Implement the `BenchmarkModel` Interface
 
-In your new file, create a class that inherits from `src.benchmark_pipeline.model_handler.BenchmarkModel` and implements the `__init__` and `forward` methods.
+In your new file, create a class that inherits from `src.benchmark_pipeline.model_handler.BenchmarkModel`. You must implement `__init__` and `forward`. You can also optionally implement `fit` if your model requires a training or fitting step.
 
 **Template:**
 ```python
-# models/MyPatchCore.py
+# models/YourNewModel.py
 
 import torch
 from src.benchmark_pipeline.model_handler import BenchmarkModel
+from torch.utils.data import DataLoader
 
-class MyPatchCore(BenchmarkModel):
+class YourNewModel(BenchmarkModel):
     def __init__(self, image_size=(256, 256)):
         """
-        Your model's initialization code goes here.
-        This is where you would load weights, define layers, etc.
+        Your model's initialization code. Load weights, define layers, etc.
         """
         super().__init__(image_size)
-        # Example:
-        # self.patch_core_model = self.load_model_weights()
+        # Your layers and weights go here
+
+    def fit(self, training_dataloader: DataLoader):
+        """
+        (Optional) This method is called by the pipeline before inference.
+        
+        Use this to train your model or build a memory bank on the provided
+        'good' samples from the training set.
+        
+        The pipeline automatically provides a dataloader containing only
+        normal training images.
+        """
+        print(f"[{self.__class__.__name__}] Starting fitting process...")
+        # Your training/fitting logic goes here
+        pass
 
     def forward(self, image_tensor: torch.Tensor) -> torch.Tensor:
         """
-        This method takes a batch of images and must return a batch of
-        anomaly maps.
+        This method takes a batch of test images and must return a batch
+        of corresponding anomaly maps.
 
         Args:
             image_tensor: A tensor of input images, shape (N, C, H, W).
@@ -148,11 +162,7 @@ class MyPatchCore(BenchmarkModel):
         Returns:
             A tensor of anomaly maps, shape (N, 1, H, W).
         """
-        # Your model's inference logic goes here.
-        # anomaly_map = self.patch_core_model(image_tensor)
-        # return anomaly_map
-        
-        # Placeholder: returning a zero tensor
+        # Your model's inference logic goes here
         batch_size = image_tensor.shape[0]
         return torch.zeros(batch_size, 1, self.image_size[0], self.image_size[1])
 
@@ -164,11 +174,46 @@ Finally, add the name of your new model class to the `models` list in `configs/p
 
 ```yaml
 models:
-  - DummyModelV1
-  - MyPatchCore # Your new model
+  - PatchCore
+  - YourNewModel # Your new model
 ```
 
-That's it! The next time you run the pipeline, your new model will be automatically included in the benchmark.
+That's it! The pipeline will automatically call `fit()` if it exists and then `forward()` for evaluation.
+
+### Advanced: Handling Memory-Intensive Models (e.g., PatchCore)
+
+Some models, like PatchCore, create a large memory bank of features from the training set. This can easily cause a **CUDA Out of Memory (OOM)** error during inference, as the distance calculation between all test patches and all memory bank patches becomes too large.
+
+This project's `PatchCore` implementation demonstrates a standard solution: **Coreset Subsampling**.
+
+The idea is to select a smaller, representative subset of the full memory bank. This drastically reduces memory usage and computation time during inference, often with a minimal impact on accuracy.
+
+**How it's implemented in `models/PatchCore.py`:**
+
+1.  **Configurable Ratio**: The `PatchCore` `__init__` method accepts a `coreset_sampling_ratio` (defaulting to `0.01` or 1%).
+
+    ```python
+    class PatchCore(BenchmarkModel):
+        def __init__(self, image_size=(256, 256), coreset_sampling_ratio: float = 0.01):
+            super().__init__(image_size)
+            self.coreset_sampling_ratio = coreset_sampling_ratio
+            # ...
+    ```
+
+2.  **Subsampling in `fit()`**: After the full memory bank is built, it is randomly subsampled to the desired size before being stored.
+
+    ```python
+    # In the fit() method...
+    full_memory_bank = torch.cat(all_features, dim=0)
+
+    # Coreset Subsampling
+    if self.coreset_sampling_ratio < 1.0:
+        num_features_to_keep = int(full_memory_bank.shape[0] * self.coreset_sampling_ratio)
+        perm = torch.randperm(full_memory_bank.shape[0])
+        self.memory_bank = full_memory_bank[perm[:num_features_to_keep]]
+    ```
+
+This pattern is a best practice for implementing similar memory-intensive models in this pipeline. By tuning the sampling ratio, you can effectively manage the trade-off between performance and resource consumption.
 
 ---
 

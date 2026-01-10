@@ -75,56 +75,88 @@ class GenerationRunner:
         self.image_size = image_size
         self.output_dir = CONFIG.paths.anomaly_maps_root
         self.batch_size = CONFIG.batch_size
-
-        # Determine device and move model
         self.device = get_device(CONFIG.device)
-        print(f"INFO: Using device: {self.device}")
-        
-        handler = ModelHandler(model_name)
-        self.model = handler.get_model_instance(image_size=self.image_size)
-        self.model.to(self.device)
-        self.model.eval()
 
     def run(self):
         """
-        Executes the anomaly map generation process.
+        Executes the full anomaly map generation process for a single model-category pair,
+        including model fitting and inference.
         """
-        print(f"--- Generating maps for model '{self.model_name}' on category '{self.category}' ---")
+        print(f"--- Running generation for model '{self.model_name}' on category '{self.category}' ---")
         
-        category_view = self.fo_dataset.match(F("category.label") == self.category)
+        # 1. Instantiate model and move to device
+        handler = ModelHandler(self.model_name)
+        model = handler.get_model_instance(image_size=self.image_size)
+        model.to(self.device)
+        
+        # 2. Prepare training data (normal samples) and fit the model
+        print("Preparing training data ('good' samples)...")
+        training_dataloader = self._prepare_dataloader(is_training=True)
+        if training_dataloader:
+            model.fit(training_dataloader)
+        else:
+            print("No training samples found, skipping fit.")
 
-        if not category_view:
-            print(f"Warning: No samples found for category '{self.category}'. Skipping.")
+        # 3. Prepare test data (all samples) and run inference
+        print("Preparing test data...")
+        test_dataloader = self._prepare_dataloader(is_training=False)
+        if not test_dataloader:
+            print(f"Warning: No test samples found for category '{self.category}'. Skipping.")
             return
 
-        self._generate_and_save_maps(category_view)
+        model.eval() # Ensure model is in eval mode for inference
+        self._run_inference(model, test_dataloader)
         
-        print(f"--- Anomaly map generation for '{self.category}' complete. ---\n")
+        print(f"--- Generation for '{self.model_name}' on '{self.category}' complete. ---\n")
 
-    def _generate_and_save_maps(self, category_view: SampleView):
-        """Iterates through samples, generates anomaly maps, and saves them."""
-        
+    def _prepare_dataloader(self, is_training: bool) -> DataLoader | None:
+        """
+        Prepares a DataLoader for either training (normal samples) or testing (all samples).
+
+        Args:
+            is_training: If True, filters for 'good' samples for fitting.
+                         If False, uses all samples for inference.
+
+        Returns:
+            A DataLoader instance or None if no samples are found.
+        """
+        view = self.fo_dataset.match(F("category.label") == self.category)
+
+        if is_training:
+            # For fitting, use only the normal ("good") samples from the 'train' split
+            view = view.match(F("defect.label") == "good").match(F("split") == "train")
+
+        if not view:
+            return None
+
         # Create a vectorized dataset for performance
         torch_dataset = FiftyOneTorchDataset(
-            category_view,
+            view,
             get_item=AnomalyMapGetItem(),
             vectorize=True,
         )
 
+        # Use shuffle for training to improve model fitting
+        shuffle = True if is_training else False
+
         dataloader = DataLoader(
             torch_dataset,
             batch_size=self.batch_size,
-            shuffle=False,
+            shuffle=shuffle,
             num_workers=4,
             pin_memory=True,
         )
+        return dataloader
 
+    def _run_inference(self, model: torch.nn.Module, dataloader: DataLoader):
+        """Iterates through samples, generates anomaly maps, and saves them."""
+        print(f"Starting inference...")
         with torch.no_grad():
             for image_tensor, defect_labels, image_ids in tqdm(dataloader, desc=f"Processing '{self.category}'"):
                 image_tensor = image_tensor.to(self.device)
                 
                 # Generate anomaly map
-                anomaly_map_tensor = self.model(image_tensor)
+                anomaly_map_tensor = model(image_tensor)
                 
                 # Process and save each map in the batch
                 for i in range(len(image_ids)):

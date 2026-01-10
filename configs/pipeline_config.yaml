@@ -7,9 +7,10 @@ batch_size: 32
 # List of models to evaluate.
 # These names must correspond to model handler configurations.
 models:
-  - DummyModelV1
-  - DummyModelV2
-  - DummyModelV3
+  # - DummyModelV1
+  # - DummyModelV2
+  # - DummyModelV3
+  - PatchCore
 
 # List of MVTec AD categories to run the evaluation on.
 categories:
