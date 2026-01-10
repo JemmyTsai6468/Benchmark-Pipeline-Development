@@ -6,6 +6,14 @@ This project provides a fully automated, configurable, and extensible benchmark 
 
 It is designed with a clean, modern architecture to allow developers to easily add new models for evaluation and run the entire end-to-end process—from dataset setup to final metric reporting—with a single command.
 
+### Technologies
+
+*   **Python**: Core language (3.12+).
+*   **uv**: Fast Python package and environment management.
+*   **PyTorch**: Deep learning framework for model execution and GPU acceleration.
+*   **FiftyOne**: Dataset management and visualization (requires MongoDB).
+*   **MongoDB**: Backend database for FiftyOne.
+
 ## Key Features
 
 - **🚀 Automated End-to-End Flow**: A single command executes the entire pipeline, including dataset downloading, anomaly map generation, metric calculation, and results summarization.
@@ -53,10 +61,14 @@ uv pip install -r requirements.txt
 
 ### Step 1: Configure the Experiment
 
-Edit `configs/pipeline_config.yaml` to define the scope of your benchmark run. Specify which models you want to evaluate and on which dataset categories.
+Edit `configs/pipeline_config.yaml` to define the scope of your benchmark run. Specify the computation device, batch size, which models you want to evaluate, and on which dataset categories.
 
 ```yaml
 # configs/pipeline_config.yaml
+
+# Performance settings
+device: auto   # Use "cuda", "cpu", or "auto" for automatic detection.
+batch_size: 32 # Number of images to process in a single batch.
 
 # List of models to evaluate.
 # These names must match the class names in the models/ directory.
@@ -156,3 +168,13 @@ models:
 ```
 
 That's it! The next time you run the pipeline, your new model will be automatically included in the benchmark.
+
+---
+
+## Development Notes
+
+### Multiprocessing & Database Safety
+
+This project uses PyTorch `DataLoader` with multiple workers to speed up data loading. Since FiftyOne uses MongoDB (via PyMongo), special care is taken to avoid "MongoClient opened before fork" warnings and potential deadlocks.
+
+The pipeline is configured to use the **`'spawn'`** multiprocessing context in `src/benchmark_pipeline/generation_runner.py`. This ensures that each worker process starts fresh and establishes its own database connection, which is the most robust way to handle FiftyOne in a multi-worker environment.
