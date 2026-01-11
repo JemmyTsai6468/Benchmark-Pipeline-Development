@@ -1,9 +1,5 @@
 __pycache__/
-anomaly_maps/
-metrics/
-mvtec_ad_structured/
-evaluation_metrics/
-generated_anomaly_maps/
 data/
 results/
 GEMINI.md
+.gemini/
