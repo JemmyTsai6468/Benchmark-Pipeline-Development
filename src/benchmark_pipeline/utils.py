@@ -37,8 +37,10 @@ def get_device(device: str) -> torch.device:
             print("WARNING: CUDA is not available. Falling back to CPU.")
             return torch.device("cpu")
         return torch.device("cuda")
-    else:
+    elif device == "cpu":
         return torch.device("cpu")
+    else:
+        raise ValueError("Invalid device specified. Choose from 'auto', 'cuda', 'cpu'.")
 
 
 def trapezoid(x, y, x_max=None):

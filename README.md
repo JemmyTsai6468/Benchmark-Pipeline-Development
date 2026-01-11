@@ -219,6 +219,25 @@ This pattern is a best practice for implementing similar memory-intensive models
 
 ## Development Notes
 
+### Unit Testing
+
+To ensure the reliability and maintainability of the pipeline, unit tests have been implemented using `pytest` and `pytest-mock`. These tests focus on verifying the correctness of individual components in isolation, making refactoring safer and identifying bugs earlier in the development cycle.
+
+**Running Tests:**
+
+To run the entire test suite, ensure your development environment is active (e.g., via `uv pip install -r requirements.txt`) and execute the following command from the project root:
+
+```bash
+uv run pytest tests/
+```
+
+**Current Coverage:**
+
+Unit tests currently cover:
+*   **`ModelHandler`**: Verifies the dynamic loading and instantiation of models.
+*   **`utils.py`**: Ensures the correct behavior of utility functions, including device selection and error handling for invalid inputs.
+*   **`Pipeline` Orchestration**: Confirms that the main pipeline steps are called in the correct order during execution, using mocks to isolate the orchestration logic.
+
 ### High-Performance Data Loading with PyTorch
 
 This project uses the officially recommended `fiftyone.utils.torch.FiftyOneTorchDataset` to interface between the FiftyOne dataset and the PyTorch `DataLoader`.

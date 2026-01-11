@@ -17,3 +17,7 @@ faiss-cpu
 anomalib
 openvino-dev
 pytorch-lightning
+
+# Testing dependencies
+pytest
+pytest-mock
