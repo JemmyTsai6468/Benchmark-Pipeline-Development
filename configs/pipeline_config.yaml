@@ -11,7 +11,9 @@ models:
   # - DummyModelV2
   # - DummyModelV3
   # - PatchCore
-  - Padim
+  # - Padim
+  # - PatchCore
+  - Fastflow
 
 # List of MVTec AD categories to run the evaluation on.
 categories:
