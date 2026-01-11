@@ -14,3 +14,6 @@ pydantic
 pyyaml
 timm
 faiss-cpu
+anomalib
+openvino-dev
+pytorch-lightning
