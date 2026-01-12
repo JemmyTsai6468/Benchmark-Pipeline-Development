@@ -49,7 +49,7 @@ The project is organized into the following key directories:
 
 1.  **Python**: Version 3.12+
 2.  **Package Manager**: This project uses `uv` for environment and package management.
-3.  **MongoDB**: [FiftyOne](https://docs.voxel51.com/getting_started/install.html#database), the dataset management tool used in this pipeline, requires a running MongoDB instance. Please ensure you have MongoDB installed and running on `localhost:27017`.
+3.  **MongoDB**: [FiftyOne](https://docs.voxel51.com/getting_started/install.html#database), the dataset management tool used in this pipeline, requires a running MongoDB instance. By default, the pipeline connects to `localhost:27017`, but you can override this in `configs/pipeline_config.yaml`.
 
 ### Installation
 
@@ -63,7 +63,7 @@ uv pip install -r requirements.txt
 
 ### Step 1: Configure the Experiment
 
-Edit `configs/pipeline_config.yaml` to define the scope of your benchmark run. Specify the computation device, batch size, which models you want to evaluate, and on which dataset categories.
+Edit `configs/pipeline_config.yaml` to define the scope of your benchmark run. Specify the computation device, database connection, batch size, which models you want to evaluate, and on which dataset categories.
 
 ```yaml
 # configs/pipeline_config.yaml
@@ -72,6 +72,9 @@ Edit `configs/pipeline_config.yaml` to define the scope of your benchmark run. S
 device: auto   # Use "cuda", "cpu", or "auto" for automatic detection.
 batch_size: 32 # Number of images to process in a single batch.
 num_workers: 4 # Number of worker processes for the DataLoader.
+
+# Connection settings
+database_uri: "mongodb://localhost:27017" # Connection string for the FiftyOne database.
 
 # List of models to evaluate.
 # These names must match the class names in the models/ directory.

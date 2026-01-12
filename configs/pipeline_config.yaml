@@ -5,6 +5,9 @@ device: auto # Use "cuda", "cpu", or "auto" for automatic detection.
 batch_size: 32
 num_workers: 4
 
+# Connection settings
+database_uri: "mongodb://localhost:27017" # Connection string for the FiftyOne database (MongoDB).
+
 # List of models to evaluate.
 # These names must correspond to model handler configurations.
 models:
@@ -12,9 +15,9 @@ models:
   # - DummyModelV2
   # - DummyModelV3
   # - PatchCore
-  # - Padim
+  - Padim
   - PatchCore
-  # - Fastflow
+  - Fastflow
 
 # List of MVTec AD categories to run the evaluation on.
 categories:

@@ -15,11 +15,18 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 import fiftyone as fo
+from src.benchmark_pipeline.config import CONFIG
 from src.benchmark_pipeline.pipeline import Pipeline
 
 # --- Configure FiftyOne to use a local database ---
 # This must be done before any other fiftyone operations.
-fo.config.database_uri = "mongodb://localhost:27017"
+if CONFIG:
+    fo.config.database_uri = CONFIG.database_uri
+else:
+    # Fallback or error if config is not loaded, though the config module
+    # already prints a critical error.
+    print("CRITICAL: Cannot configure FiftyOne DB, pipeline config failed to load.")
+    sys.exit(1)
 
 def main():
     """

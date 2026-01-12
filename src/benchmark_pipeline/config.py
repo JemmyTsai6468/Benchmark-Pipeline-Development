@@ -27,6 +27,7 @@ class PipelineConfig(BaseModel):
     device: str = Field("auto", description='Device to use, e.g., "cuda", "cpu", or "auto".')
     batch_size: int = Field(32, gt=0, description="Batch size for processing.")
     num_workers: int = Field(4, ge=0, description="Number of workers for the DataLoader.")
+    database_uri: str = Field("mongodb://localhost:27017", description="Connection string for the FiftyOne database (MongoDB).")
     models: List[str] = Field(..., min_length=1, description="List of models to evaluate.")
     categories: List[str] = Field(..., min_length=1, description="List of MVTec AD categories to run on.")
     paths: PathsConfig
