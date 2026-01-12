@@ -71,6 +71,7 @@ Edit `configs/pipeline_config.yaml` to define the scope of your benchmark run. S
 # Performance settings
 device: auto   # Use "cuda", "cpu", or "auto" for automatic detection.
 batch_size: 32 # Number of images to process in a single batch.
+num_workers: 4 # Number of worker processes for the DataLoader.
 
 # List of models to evaluate.
 # These names must match the class names in the models/ directory.

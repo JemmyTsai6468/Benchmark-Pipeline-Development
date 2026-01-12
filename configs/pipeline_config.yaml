@@ -3,6 +3,7 @@
 # Performance settings
 device: auto # Use "cuda", "cpu", or "auto" for automatic detection.
 batch_size: 32
+num_workers: 4
 
 # List of models to evaluate.
 # These names must correspond to model handler configurations.
@@ -12,8 +13,8 @@ models:
   # - DummyModelV3
   # - PatchCore
   # - Padim
-  # - PatchCore
-  - Fastflow
+  - PatchCore
+  # - Fastflow
 
 # List of MVTec AD categories to run the evaluation on.
 categories:

@@ -75,6 +75,7 @@ class GenerationRunner:
         self.image_size = image_size
         self.output_dir = CONFIG.paths.anomaly_maps_root
         self.batch_size = CONFIG.batch_size
+        self.num_workers = CONFIG.num_workers
         self.device = get_device(CONFIG.device)
 
     def run(self):
@@ -143,7 +144,7 @@ class GenerationRunner:
             torch_dataset,
             batch_size=self.batch_size,
             shuffle=shuffle,
-            num_workers=4,
+            num_workers=self.num_workers,
             pin_memory=True,
         )
         return dataloader
