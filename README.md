@@ -43,25 +43,15 @@ The project is organized into the following key directories:
 └─── results/                  # Default output location for anomaly maps and metrics.
 ```
 
-## Setup and Installation
+## Setup and Usage
 
-### Prerequisites
+### 1. Prerequisites
 
 1.  **Python**: Version 3.12+
-2.  **Package Manager**: This project uses `uv` for environment and package management.
-3.  **MongoDB**: [FiftyOne](https://docs.voxel51.com/getting_started/install.html#database), the dataset management tool used in this pipeline, requires a running MongoDB instance. By default, the pipeline connects to `localhost:27017`, but you can override this in `configs/pipeline_config.yaml`.
+2.  **Package Manager**: This project uses `uv` (version **0.9.21** or newer) for environment and package management.
+3.  **MongoDB**: [FiftyOne](https://docs.voxel51.com/getting_started/install.html#database), the dataset management tool used in this pipeline, requires a running MongoDB instance. By default, the pipeline connects to `localhost:27017`.
 
-### Installation
-
-Install all required Python packages using `uv`:
-
-```bash
-uv pip install -r requirements.txt
-```
-
-## How to Run the Pipeline
-
-### Step 1: Configure the Experiment
+### 2. Configure the Experiment
 
 Edit `configs/pipeline_config.yaml` to define the scope of your benchmark run. Specify the computation device, database connection, batch size, which models you want to evaluate, and on which dataset categories.
 
@@ -80,24 +70,25 @@ database_uri: "mongodb://localhost:27017" # Connection string for the FiftyOne d
 # These names must match the class names in the models/ directory.
 models:
   - DummyModelV1
-  - DummyModelV2
-  - DummyModelV3
   # - MyNewModel # Add your custom model here
 
 # List of MVTec AD categories to run the evaluation on.
 categories:
   - bottle
   - cable
-  - carpet
   # - ... and so on
 ```
 
-### Step 2: Execute the Pipeline
+### 3. Run the Pipeline
 
-Run the entire pipeline using the main entry point script:
+There are two main ways to install dependencies and run the pipeline:
+
+#### Recommended Method: `uv run`
+
+This is the fastest and simplest way. `uv` will automatically create a virtual environment, install all dependencies, and execute the benchmark script with a single command.
 
 ```bash
-uv run python scripts/run_benchmark.py
+uv run scripts/run_benchmark.py
 ```
 
 The script will automatically handle:
@@ -107,9 +98,24 @@ The script will automatically handle:
 4.  Executing the evaluation scripts.
 5.  Printing a summary report to the console.
 
-### Step 3: Check the Results
+#### Traditional Method
 
-The final summary tables (AU-PRO and AU-ROC) will be printed to your console upon completion.
+If you prefer to manage the virtual environment manually:
+
+1.  **Install dependencies:**
+    ```bash
+    # Create and activate a virtual environment first, then:
+    pip install -r requirements.txt
+    ```
+
+2.  **Run the script:**
+    ```bash
+    python scripts/run_benchmark.py
+    ```
+
+### 4. Check the Results
+
+After the run is complete, the final summary tables (AU-PRO and AU-ROC) will be printed to your console.
 
 Detailed JSON files for each model's performance are saved in the `results/metrics/` directory, organized by model name.
 
@@ -183,41 +189,6 @@ models:
 ```
 
 That's it! The pipeline will automatically call `fit()` if it exists and then `forward()` for evaluation.
-
-### Advanced: Handling Memory-Intensive Models (e.g., PatchCore)
-
-Some models, like PatchCore, create a large memory bank of features from the training set. This can easily cause a **CUDA Out of Memory (OOM)** error during inference, as the distance calculation between all test patches and all memory bank patches becomes too large.
-
-This project's `PatchCore` implementation demonstrates a standard solution: **Coreset Subsampling**.
-
-The idea is to select a smaller, representative subset of the full memory bank. This drastically reduces memory usage and computation time during inference, often with a minimal impact on accuracy.
-
-**How it's implemented in `models/PatchCore.py`:**
-
-1.  **Configurable Ratio**: The `PatchCore` `__init__` method accepts a `coreset_sampling_ratio` (defaulting to `0.01` or 1%).
-
-    ```python
-    class PatchCore(BenchmarkModel):
-        def __init__(self, image_size=(256, 256), coreset_sampling_ratio: float = 0.01):
-            super().__init__(image_size)
-            self.coreset_sampling_ratio = coreset_sampling_ratio
-            # ...
-    ```
-
-2.  **Subsampling in `fit()`**: After the full memory bank is built, it is randomly subsampled to the desired size before being stored.
-
-    ```python
-    # In the fit() method...
-    full_memory_bank = torch.cat(all_features, dim=0)
-
-    # Coreset Subsampling
-    if self.coreset_sampling_ratio < 1.0:
-        num_features_to_keep = int(full_memory_bank.shape[0] * self.coreset_sampling_ratio)
-        perm = torch.randperm(full_memory_bank.shape[0])
-        self.memory_bank = full_memory_bank[perm[:num_features_to_keep]]
-    ```
-
-This pattern is a best practice for implementing similar memory-intensive models in this pipeline. By tuning the sampling ratio, you can effectively manage the trade-off between performance and resource consumption.
 
 ---
 
