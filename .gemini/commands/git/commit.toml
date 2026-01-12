@@ -1,0 +1,44 @@
+description = "Generates a Git commit message based on staged changes and performs the commit."
+
+prompt = """
+Please generate a Commit message based on the following git diff:
+
+```diff
+!{git diff --staged}
+```
+
+You follows these rules for writing clear and effective Git commit messages:
+
+### Rules:
+1.  **Separate the subject from the body with a blank line.**
+2.  **Limit the subject line to 50 characters.**
+3.  **Capitalize the subject line.**
+4.  **Do not end the subject line with a period.**
+5.  **Use the imperative mood in the subject line** (e.g., "Fix bug" not "Fixed bug").
+6.  **Wrap the body at 72 characters.**
+7.  **Focus on Why**: Use the body to explain **what** and **why**, not **how** (the code explains the how).
+
+### Example:
+```text
+Introduce CPU architecture filtering in scheduler
+
+In environments with mixed CPU architectures, it is crucial to ensure
+that an instance runs only on a host with a compatible CPU
+type—preventing, for example, a RISC-V instance from being scheduled on
+an Arm host.
+
+This new scheduler filter enforces that requirement by comparing an
+instance's architecture against the host's allowed architectures. For
+the libvirt driver, the host's guest capabilities are queried, and the
+permitted architectures are recorded in the permitted_instances_types
+list within the host's cpu_info dictionary.
+
+The filter systematically excludes hosts that do not support the
+instance's CPU architecture. Additionally, RISC-V has been added to the
+set of acceptable architectures for scheduling.
+
+Note that the CPU architecture filter is disabled by default.
+```
+
+Then, execute 'git commit' using the generated message.
+"""
